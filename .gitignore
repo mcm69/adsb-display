@@ -1,0 +1,7 @@
+.pio
+.vscode
+.DS_Store
+.claude/
+
+# Local configuration (copy from config.example.h)
+include/config.h
