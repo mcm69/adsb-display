@@ -30,6 +30,16 @@ static float calculateDistance(float lat1, float lon1, float lat2, float lon2) {
     return 3440.065 * c;  // Earth radius in nautical miles
 }
 
+static float calculateBearing(float lat1, float lon1, float lat2, float lon2) {
+    float dLon = radians(lon2 - lon1);
+    float y = sin(dLon) * cos(radians(lat2));
+    float x = cos(radians(lat1)) * sin(radians(lat2)) -
+              sin(radians(lat1)) * cos(radians(lat2)) * cos(dLon);
+    float bearing = degrees(atan2(y, x));
+    if (bearing < 0) bearing += 360.0f;
+    return bearing;
+}
+
 bool fetchAircraftData() {
     if (WiFi.status() != WL_CONNECTED) {
         Serial.println("WiFi not connected");
@@ -115,10 +125,14 @@ bool fetchAircraftData() {
         // Ground speed (rounded to nearest int)
         a.groundSpeed = (int)round(aircraft["gs"] | 0.0f);
 
-        // Distance for sorting
+        // Distance and bearing from observer
         float lat = aircraft["lat"] | 0.0f;
         float lon = aircraft["lon"] | 0.0f;
         a.distance = calculateDistance(LATITUDE, LONGITUDE, lat, lon);
+        a.bearing = calculateBearing(LATITUDE, LONGITUDE, lat, lon);
+
+        // Aircraft heading (track over ground)
+        a.heading = aircraft["track"].is<float>() ? (int)round((float)aircraft["track"]) : -1;
 
         aircraftCount++;
     }
@@ -139,31 +153,6 @@ bool fetchAircraftData() {
 
     Serial.printf("Found %d aircraft\n", aircraftCount);
     return true;
-}
-
-// Convert degrees to cardinal direction
-static const char* degreesToCardinal(float degrees) {
-    const char* directions[] = {"N", "NE", "E", "SE", "S", "SW", "W", "NW"};
-    int index = (int)((degrees + 22.5) / 45.0) % 8;
-    return directions[index];
-}
-
-// Simplify met.no symbol codes to short descriptions
-static const char* simplifySymbol(const char* symbol) {
-    if (strstr(symbol, "clearsky")) return "clear";
-    if (strstr(symbol, "fair")) return "fair";
-    if (strstr(symbol, "partlycloudy")) return "partly cloudy";
-    if (strstr(symbol, "cloudy")) return "cloudy";
-    if (strstr(symbol, "fog")) return "fog";
-    if (strstr(symbol, "heavyrain")) return "heavy rain";
-    if (strstr(symbol, "lightrain")) return "light rain";
-    if (strstr(symbol, "rain")) return "rain";
-    if (strstr(symbol, "heavysnow")) return "heavy snow";
-    if (strstr(symbol, "lightsnow")) return "light snow";
-    if (strstr(symbol, "snow")) return "snow";
-    if (strstr(symbol, "sleet")) return "sleet";
-    if (strstr(symbol, "thunder")) return "thunder";
-    return symbol;  // fallback to original
 }
 
 bool fetchWeatherData() {

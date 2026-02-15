@@ -11,6 +11,8 @@ struct Aircraft {
     int verticalRate;  // baro_rate: positive = climbing, negative = descending
     int groundSpeed;
     float distance;
+    float bearing;     // degrees (0-359) from observer to aircraft
+    int heading;       // aircraft track in degrees, -1 if unknown
 };
 
 // Shared aircraft data
