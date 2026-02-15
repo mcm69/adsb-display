@@ -13,21 +13,21 @@ A real-time aircraft tracker that displays nearby aircraft on an e-ink display, 
 
 ## Hardware
 
-- **MCU**: ESP32-C6-DevKitM-1
-- **Display**: WeAct 4.2" e-ink display (400x300, SSD1683-based)
+- **MCU**: Seeed Studio XIAO ESP32-C6
+- **Display**: WeAct 4.2" e-ink display (400x300, SSD1683-based, 1-bit black/white)
 
 ### Wiring
 
-| Display Pin | ESP32-C6 Pin |
-|-------------|--------------|
-| VCC         | 3V3          |
-| GND         | GND          |
-| SCL         | GPIO 6       |
-| SDA         | GPIO 7       |
-| CS          | GPIO 10      |
-| D/C         | GPIO 4       |
-| RES         | GPIO 5       |
-| BUSY        | GPIO 8       |
+| Display Pin | XIAO Pin | GPIO |
+|-------------|----------|------|
+| VCC         | 3V3      | -    |
+| GND         | GND      | -    |
+| SCL (SCK)   | D8       | 19   |
+| SDA (MOSI)  | D10      | 18   |
+| CS          | D3       | 21   |
+| D/C         | D1       | 1    |
+| RES         | D2       | 2    |
+| BUSY        | D0       | 0    |
 
 ## Setup
 

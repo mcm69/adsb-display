@@ -28,11 +28,23 @@
 // Partial refresh is faster but can leave ghosting; full refresh clears it
 #define FULL_REFRESH_INTERVAL 5
 
-// E-ink display pins for ESP32-C6 DevKitM-1
-// SPI uses hardware pins: SCL=GPIO6, SDA=GPIO7
-#define EPD_CS    10
-#define EPD_DC    4
-#define EPD_RST   5
-#define EPD_BUSY  8
+// E-ink display pins for XIAO ESP32-C6
+// SPI uses hardware pins: SCK=D8/GPIO19, MOSI=D10/GPIO18
+//
+// Display Pin   XIAO Pin   GPIO
+// VCC           3V3        -
+// GND           GND        -
+// SCL (SCK)     D8         GPIO19
+// SDA (MOSI)    D10        GPIO18
+// CS            D3         GPIO21
+// D/C           D1         GPIO1
+// RES           D2         GPIO2
+// BUSY          D0         GPIO0
+#define EPD_SCK   19
+#define EPD_MOSI  18
+#define EPD_CS    21
+#define EPD_DC    1
+#define EPD_RST   2
+#define EPD_BUSY  0
 
 #endif

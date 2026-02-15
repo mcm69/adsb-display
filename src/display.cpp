@@ -42,9 +42,9 @@ static const char* simplifySymbol(const char* symbol) {
 }
 
 void initDisplay() {
-    // Initialize SPI with explicit pins for ESP32-C6
+    // Initialize SPI with explicit pins for XIAO ESP32-C6
     // SPI.begin(SCK, MISO, MOSI, SS)
-    SPI.begin(6, -1, 7, EPD_CS);
+    SPI.begin(EPD_SCK, -1, EPD_MOSI, EPD_CS);
 
     display.init(115200);
     display.setRotation(0);  // Adjust rotation as needed (0-3)
