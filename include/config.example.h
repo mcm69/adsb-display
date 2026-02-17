@@ -26,7 +26,7 @@
 
 // Full display refresh interval (every N updates)
 // Partial refresh is faster but can leave ghosting; full refresh clears it
-#define FULL_REFRESH_INTERVAL 5
+#define FULL_REFRESH_INTERVAL 15
 
 // E-ink display pins for XIAO ESP32-C6
 // SPI uses hardware pins: SCK=D8/GPIO19, MOSI=D10/GPIO18

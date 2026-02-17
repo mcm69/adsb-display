@@ -10,6 +10,7 @@ struct Aircraft {
     int altitude;
     int verticalRate;  // baro_rate: positive = climbing, negative = descending
     int groundSpeed;
+    bool speedEstimated; // true when using IAS/TAS fallback instead of ground speed
     float distance;
     float bearing;     // degrees (0-359) from observer to aircraft
     int heading;       // aircraft track in degrees, -1 if unknown

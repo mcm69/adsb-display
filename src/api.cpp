@@ -94,8 +94,14 @@ bool fetchAircraftData() {
         const char* category = aircraft["category"] | "";
         if (category[0] == 'C') continue;
 
-        // Skip if on ground (alt_baro can be "ground" string)
-        if (aircraft["alt_baro"].is<const char*>()) continue;
+        // Filter out non-transponder sources (ground equipment)
+        const char* msgType = aircraft["type"] | "";
+        if (strcmp(msgType, "adsb_icao_nt") == 0) continue;
+
+        // Skip records with no registration and no aircraft type
+        const char* reg_check = aircraft["r"] | "";
+        const char* type_check = aircraft["t"] | "";
+        if (!reg_check[0] && !type_check[0]) continue;
 
         Aircraft& a = aircraftList[aircraftCount];
 
@@ -122,8 +128,16 @@ bool fetchAircraftData() {
         a.altitude = aircraft["alt_baro"] | aircraft["alt_geom"] | 0;
         a.verticalRate = aircraft["baro_rate"] | aircraft["geom_rate"] | 0;
 
-        // Ground speed (rounded to nearest int)
-        a.groundSpeed = (int)round(aircraft["gs"] | 0.0f);
+        // Ground speed with fallback to TAS/IAS
+        float gs = aircraft["gs"] | 0.0f;
+        if (gs > 0) {
+            a.groundSpeed = (int)round(gs);
+            a.speedEstimated = false;
+        } else {
+            float fallback = aircraft["tas"] | aircraft["ias"] | 0.0f;
+            a.groundSpeed = (int)round(fallback);
+            a.speedEstimated = (a.groundSpeed > 0);
+        }
 
         // Distance and bearing from observer
         float lat = aircraft["lat"] | 0.0f;

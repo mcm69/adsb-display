@@ -7,13 +7,14 @@
 
 #include <SPI.h>
 #include <GxEPD2_BW.h>
-#include <Fonts/FreeMonoBold9pt7b.h>
-#include <Fonts/FreeMonoBold12pt7b.h>
+#include <U8g2_for_Adafruit_GFX.h>
 #include <time.h>
 
 // Display instance for WeAct 4.2" (400x300)
 static GxEPD2_BW<GxEPD2_420_GDEY042T81, GxEPD2_420_GDEY042T81::HEIGHT> display(
     GxEPD2_420_GDEY042T81(EPD_CS, EPD_DC, EPD_RST, EPD_BUSY));
+
+static U8G2_FOR_ADAFRUIT_GFX u8g2Fonts;
 
 static int updatesSinceFullRefresh = 0;
 
@@ -51,29 +52,39 @@ static void formatDistance(char* buf, size_t len, float nm) {
     }
 }
 
-// Build the description string for line 1 right side: "AirlineName TypeName"
-// Truncates to maxChars to fit the available pixel width
-static void buildDescription(char* buf, size_t len, const char* callsign, const char* typeCode, int maxChars = 17) {
+// Build airline name string for line 1 right side
+static void buildAirlineName(char* buf, size_t len, const char* callsign, int maxChars = 21) {
     const char* airline = lookupAirlineName(callsign);
-    const char* typeName = lookupTypeName(typeCode);
-
-    if (airline && typeName) {
-        snprintf(buf, len, "%s %s", airline, typeName);
-    } else if (airline) {
+    if (airline) {
         snprintf(buf, len, "%s", airline);
-    } else if (typeName) {
+    } else {
+        snprintf(buf, len, "(unknown airline)");
+    }
+    if ((int)strlen(buf) > maxChars) buf[maxChars] = '\0';
+}
+
+// Build type name string for line 2 right side
+static void buildTypeName(char* buf, size_t len, const char* typeCode, int maxChars = 21) {
+    const char* typeName = lookupTypeName(typeCode);
+    if (typeName) {
         snprintf(buf, len, "%s", typeName);
     } else if (typeCode[0]) {
-        snprintf(buf, len, "(%s)", typeCode);
+        snprintf(buf, len, "%s", typeCode);
     } else {
         buf[0] = '\0';
-        return;
     }
+    if ((int)strlen(buf) > maxChars) buf[maxChars] = '\0';
+}
 
-    // Truncate if too long for the display column
-    if ((int)strlen(buf) > maxChars) {
-        buf[maxChars] = '\0';
-    }
+// Helper: print formatted text at position using u8g2Fonts
+static void printAt(int x, int y, const char* fmt, ...) {
+    char buf[64];
+    va_list args;
+    va_start(args, fmt);
+    vsnprintf(buf, sizeof(buf), fmt, args);
+    va_end(args);
+    u8g2Fonts.setCursor(x, y);
+    u8g2Fonts.print(buf);
 }
 
 void initDisplay() {
@@ -82,6 +93,12 @@ void initDisplay() {
 
     display.init(115200);
     display.setRotation(0);
+
+    u8g2Fonts.begin(display);
+    u8g2Fonts.setFontMode(1);       // transparent background
+    u8g2Fonts.setFontDirection(0);   // left to right
+    u8g2Fonts.setForegroundColor(GxEPD_BLACK);
+    u8g2Fonts.setBackgroundColor(GxEPD_WHITE);
 }
 
 void showStartupScreen() {
@@ -89,10 +106,8 @@ void showStartupScreen() {
     display.firstPage();
     do {
         display.fillScreen(GxEPD_WHITE);
-        display.setTextColor(GxEPD_BLACK);
-        display.setFont(&FreeMonoBold12pt7b);
-        display.setCursor(100, 150);
-        display.print("Starting...");
+        u8g2Fonts.setFont(u8g2_font_8x13B_mf);
+        printAt(120, 150, "Starting...");
     } while (display.nextPage());
 }
 
@@ -103,26 +118,18 @@ void updateDisplayError(int consecutiveFailures, unsigned long backoffMs) {
 
     do {
         display.fillScreen(GxEPD_WHITE);
-        display.setTextColor(GxEPD_BLACK);
 
-        display.setFont(&FreeMonoBold12pt7b);
-        display.setCursor(10, 25);
-        display.print("ADS-B Tracker");
+        u8g2Fonts.setFont(u8g2_font_8x13B_mf);
+        printAt(10, 25, "ADS-B Tracker");
 
         display.drawLine(0, 35, 400, 35, GxEPD_BLACK);
 
-        display.setFont(&FreeMonoBold9pt7b);
-        display.setCursor(10, 80);
-        display.print("Request failed:");
-
-        display.setCursor(10, 110);
-        display.print(lastError);
-
-        display.setCursor(10, 150);
-        display.printf("Retrying in %lus...", backoffMs / 1000);
-
-        display.setCursor(10, 180);
-        display.printf("(attempt %d)", consecutiveFailures);
+        u8g2Fonts.setFont(u8g2_font_8x13_mf);
+        printAt(10, 70, "Request failed:");
+        u8g2Fonts.setCursor(10, 90);
+        u8g2Fonts.print(lastError);
+        printAt(10, 120, "Retrying in %lus...", backoffMs / 1000);
+        printAt(10, 140, "(attempt %d)", consecutiveFailures);
 
     } while (display.nextPage());
 }
@@ -140,88 +147,85 @@ void updateDisplay() {
         Serial.println("Partial refresh");
     }
 
+    // Character width for 8x13 font
+    const int cw = 8;
+
     display.firstPage();
 
     do {
         display.fillScreen(GxEPD_WHITE);
-        display.setTextColor(GxEPD_BLACK);
 
         // === Header ===
-        display.setFont(&FreeMonoBold12pt7b);
-        display.setCursor(10, 25);
-        display.print("ADS-B Tracker");
+        u8g2Fonts.setFont(u8g2_font_8x13_mf);
+        printAt(4, 16, "ADS-B Tracker");
+        printAt(400 - 10 * cw, 16, "%d nearby", aircraftCount);
 
-        display.setFont(&FreeMonoBold9pt7b);
-        // Right-align aircraft count
-        char countBuf[16];
-        snprintf(countBuf, sizeof(countBuf), "%d nearby", aircraftCount);
-        display.setCursor(310, 25);
-        display.print(countBuf);
+        display.drawLine(0, 24, 400, 24, GxEPD_BLACK);
 
-        display.drawLine(0, 35, 400, 35, GxEPD_BLACK);
-
-        // === Aircraft cards (up to 4, 2 lines each) ===
-        int maxDisplay = min(aircraftCount, 4);
-        const int blockHeight = 58;
-        const int line1Base = 57;   // Y for first line of first card
+        // === Aircraft cards (up to 5, 2 lines each) ===
+        int maxDisplay = min(aircraftCount, 5);
+        const int blockHeight = 48;
+        const int line1Base = 40;
 
         for (int i = 0; i < maxDisplay; i++) {
             Aircraft& a = aircraftList[i];
-            int y1 = line1Base + i * blockHeight;   // Line 1 Y
-            int y2 = y1 + 20;                        // Line 2 Y
+            int y1 = line1Base + i * blockHeight;
+            int y2 = y1 + 16;
 
-            // --- Line 1: callsign | distance+bearing | airline+type ---
-            display.setCursor(5, y1);
-            display.print(a.callsign[0] ? a.callsign : "-");
+            const int col2 = 80;   // distance / altitude column
+            const int col3 = 160;  // heading / speed column
+            const int col4 = 232;  // airline / type column
+
+            // --- Line 1: callsign | distance+bearing | hdg dir | airline ---
+            printAt(4, y1, "%s", a.callsign[0] ? a.callsign : "-");
 
             // Distance + bearing
             char distBuf[12];
             formatDistance(distBuf, sizeof(distBuf), a.distance);
-            char distBear[20];
-            snprintf(distBear, sizeof(distBear), "%s %s", distBuf, degreesToCardinal(a.bearing));
-            display.setCursor(105, y1);
-            display.print(distBear);
+            printAt(col2, y1, "%s %s", distBuf, degreesToCardinal(a.bearing));
 
-            // Airline + type description
-            char desc[28];
-            buildDescription(desc, sizeof(desc), a.callsign, a.type);
-            if (desc[0]) {
-                display.setCursor(210, y1);
-                display.print(desc);
+            // Heading
+            if (a.heading >= 0) {
+                printAt(col3, y1, "hdg %s", degreesToCardinal((float)a.heading));
             }
 
-            // --- Line 2: registration | altitude+arrow | speed | heading ---
-            display.setCursor(5, y2);
-            display.print(a.registration[0] ? a.registration : "-");
+            // Airline name
+            char airlineBuf[32];
+            buildAirlineName(airlineBuf, sizeof(airlineBuf), a.callsign);
+            printAt(col4, y1, "%s", airlineBuf);
+
+            // --- Line 2: registration | altitude+arrow | speed | type ---
+            printAt(4, y2, "%s", a.registration[0] ? a.registration : "-");
 
             // Altitude with climb/descend indicator
-            display.setCursor(105, y2);
             if (a.altitude > 0) {
-                display.printf("%dft", a.altitude);
-                // Draw triangle arrow after altitude
-                int16_t ax = display.getCursorX() + 4;
-                int16_t ay = y2 - 4;
+                char altBuf[16];
+                snprintf(altBuf, sizeof(altBuf), "%dft", a.altitude);
+                printAt(col2, y2, "%s", altBuf);
+                // Draw triangle arrow after altitude text
+                int16_t ax = col2 + (int)strlen(altBuf) * cw + 4;
+                int16_t ay = y2 - 5;
                 if (a.verticalRate > 200) {
                     display.fillTriangle(ax, ay - 4, ax - 3, ay + 2, ax + 3, ay + 2, GxEPD_BLACK);
                 } else if (a.verticalRate < -200) {
                     display.fillTriangle(ax, ay + 4, ax - 3, ay - 2, ax + 3, ay - 2, GxEPD_BLACK);
                 }
             } else {
-                display.print("GND");
+                printAt(col2, y2, "GND");
             }
 
-            // Ground speed
-            display.setCursor(210, y2);
+            // Ground speed (* = estimated from IAS/TAS)
             if (a.groundSpeed > 0) {
-                display.printf("%d kts", a.groundSpeed);
+                printAt(col3, y2, "%d kts%s", a.groundSpeed, a.speedEstimated ? "*" : "");
             } else {
-                display.print("- kts");
+                printAt(col3, y2, "- kts");
             }
 
-            // Heading
-            if (a.heading >= 0) {
-                display.setCursor(330, y2);
-                display.printf("hdg %s", degreesToCardinal((float)a.heading));
+            // Type name
+            char typeBuf[32];
+            buildTypeName(typeBuf, sizeof(typeBuf), a.type);
+            if (typeBuf[0]) {
+                printAt(col4, y2, "%s", typeBuf);
             }
 
             // Dotted separator between cards (not after last)
@@ -235,13 +239,11 @@ void updateDisplay() {
 
         // "No aircraft" message if empty
         if (aircraftCount == 0) {
-            display.setCursor(100, 150);
-            display.print("No aircraft nearby");
+            printAt(120, 150, "No aircraft nearby");
         }
 
         // === Footer ===
         display.drawLine(0, 275, 400, 275, GxEPD_BLACK);
-        display.setCursor(5, 293);
         if (apiTimestamp > 0) {
             static const char* months[] = {
                 "Jan","Feb","Mar","Apr","May","Jun",
@@ -249,22 +251,24 @@ void updateDisplay() {
             };
             time_t ts = apiTimestamp / 1000;
             struct tm* timeinfo = localtime(&ts);
-            display.printf("%s %d %02d:%02d",
+            printAt(4, 293, "%s %d %02d:%02d",
                 months[timeinfo->tm_mon], timeinfo->tm_mday,
                 timeinfo->tm_hour, timeinfo->tm_min);
         } else {
-            display.print("--- -- --:--");
+            printAt(4, 293, "--- -- --:--");
         }
 
-        // Weather on right side of footer
+        // Weather on right side of footer (right-aligned)
         if (weather.valid) {
             int windKt = (int)round(weather.windSpeed * 1.94384f);
-            display.setCursor(175, 293);
-            display.printf("%.0fC %s %s %dkt",
+            char wxBuf[48];
+            snprintf(wxBuf, sizeof(wxBuf), "%.0fC %s %s %dkt",
                 weather.temperature,
                 simplifySymbol(weather.symbol),
                 degreesToCardinal(weather.windDirection),
                 windKt);
+            int wxWidth = (int)strlen(wxBuf) * cw;
+            printAt(400 - wxWidth - 4, 293, "%s", wxBuf);
         }
 
     } while (display.nextPage());

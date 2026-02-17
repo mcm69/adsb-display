@@ -5,7 +5,8 @@ A real-time aircraft tracker that displays nearby aircraft on an e-ink display, 
 ## Features
 
 - Displays aircraft within a configurable radius of your location
-- Shows flight number, registration, aircraft type, altitude, and ground speed
+- Shows flight number, registration, aircraft type, altitude, speed, distance, bearing, and heading
+- Speed fallback: ground speed preferred, falls back to TAS/IAS when unavailable (marked with *)
 - Climb/descend indicators (triangle arrows) for aircraft changing altitude
 - Current weather conditions in footer (via [met.no](https://api.met.no))
 - Partial refresh for faster updates with periodic full refresh to clear ghosting
@@ -79,6 +80,7 @@ src/
 ├── main.cpp       # Setup, loop, WiFi handling
 ├── api.cpp/h      # ADS-B and weather API fetching
 ├── display.cpp/h  # E-ink display rendering
+├── lookup.h       # Airline and aircraft type lookup tables
 ├── aircraft.h     # Aircraft data structure
 └── serial.h       # USB CDC serial setup
 include/
